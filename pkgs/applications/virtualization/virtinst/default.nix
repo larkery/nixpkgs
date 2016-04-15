@@ -1,4 +1,4 @@
-{ stdenv, fetchurl, pythonPackages, intltool, libxml2Python, curl }:
+{ stdenv, fetchurl, pythonPackages, intltool, libxml2Python, curl, libvirt }:
 
 with stdenv.lib;
 
@@ -18,7 +18,7 @@ stdenv.mkDerivation rec {
       distutils_extra simplejson readline glanceclient cheetah lockfile httplib2
       # !!! should libvirt be a build-time dependency?  Note that
       # libxml2Python is a dependency of libvirt.py.
-      libvirt libxml2Python urlgrabber
+      pythonPackages.libvirt libxml2Python urlgrabber
     ];
 
   buildInputs =
@@ -30,9 +30,16 @@ stdenv.mkDerivation rec {
 
   buildPhase = "python setup.py build";
 
+  # virsh is a hard dependency as the tool is useless without it.
+  # virt-viewer on the other hand is not a hard dependency, and is
+  # invoked with execvp, so it doesn't need to have a canonical path
+  # anyway.
   installPhase =
     ''
        python setup.py install --prefix="$out";
+       substituteInPlace "$out/bin/virt-install" \
+          --replace "/usr/bin/virsh" ${libvirt}/bin/virsh \
+          --replace "/usr/bin/virt-viewer" "virt-viewer"
        wrapPythonPrograms
     '';
 
